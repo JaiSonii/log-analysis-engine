@@ -3,7 +3,12 @@ from typing_extensions import List, Optional
 
 class AgentState(MessagesState):
     log_list : List[str]
+    log_file_path : str
     logging_config : Optional[str]
     repomix_context : str
     log_start : Optional[str]
+
+class AgentInputSchema(MessagesState):
+    log_list : List[str]
+    log_file_path : str
     
