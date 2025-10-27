@@ -55,3 +55,26 @@ def extract_logs_from_repomix(repomix_context: str, start_str : str = "logger") 
             print(f"Fallback plain text parsing failed: {fallback_e}")
             
     return found_logs
+
+def create_log_flow(repomix_context : str, log_start : str | None = None):
+    """
+    Local function to extract log statements from the repomix_context
+    using XML parsing and RegEx.
+    """
+    log_list = []
+    print("Extracting logs using local function...")
+    try:
+        
+        if not repomix_context:
+            print("Error: repomix_context is empty. Cannot analyze logs.")
+            return []
+        
+        # Call the new helper function to do the work (use configured start token or default)
+        start_str = log_start or 'logger'
+        log_list = extract_logs_from_repomix(repomix_context, start_str)
+        
+        return log_list
+
+    except Exception as e:
+        print(f"An error occurred during log extraction: {e}")
+        return []

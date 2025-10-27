@@ -1,5 +1,5 @@
 from langgraph.graph import MessagesState
-from typing_extensions import List, Optional
+from typing_extensions import List, Optional, TypedDict
 
 class AgentState(MessagesState):
     log_list : List[str]
@@ -7,8 +7,9 @@ class AgentState(MessagesState):
     logging_config : Optional[str]
     repomix_context : str
     log_start : Optional[str]
+    total_calls : int
 
-class AgentInputSchema(MessagesState):
+class AgentInputSchema(TypedDict):
     log_list : List[str]
     log_file_path : str
     
