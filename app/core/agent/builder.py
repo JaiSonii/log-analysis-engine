@@ -1,5 +1,5 @@
 from .state import AgentState, AgentInputSchema
-from .tools import tools, tool_dict
+from .tools import ToolMaker
 from .prompts import LLM_PROMPT
 from .model_provider import ModelProvider
 
@@ -12,7 +12,7 @@ from typing_extensions import Literal
 from dotenv import load_dotenv
 load_dotenv()
 
-def build_workflow(provider :ModelProvider, log_list : list[str], log_file_path : str)-> StateGraph:
+def build_workflow(provider :ModelProvider, tool_maker : ToolMaker, log_list : list[str], log_file_path : str)-> StateGraph:
     """
     main method to build the agent workflow
     Args:
@@ -26,7 +26,7 @@ def build_workflow(provider :ModelProvider, log_list : list[str], log_file_path 
         raise FileExistsError('log_file_path not provided')
     if not provider.model:
         raise ValueError('Model not initialized')
-    
+    tools, tool_dict = tool_maker()
     model_with_tools = provider.model.bind_tools(tools)
 
     def llm_node(state: AgentState) -> dict:
