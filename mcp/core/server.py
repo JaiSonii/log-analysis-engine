@@ -1,11 +1,15 @@
 from mcp.server.fastmcp import FastMCP
-from langchain_core.tools import Tool
+from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import HumanMessage, AnyMessage
+from .state import AgentState
 from pydantic import Field
 import subprocess
 import os
 import asyncio
+
+from .builder import build_workflow
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -39,6 +43,7 @@ mcp = FastMCP(name="Intelligent Python Server", instructions="Intelligently exec
 
 @mcp.tool()
 async def delegate_complex_analysis(
+    log_list : list[str],
     query : str = Field(description="The natural language analysis task"),
     log_file_path : str = Field(description="The full path to the log file on the host")
 ):
@@ -46,58 +51,34 @@ async def delegate_complex_analysis(
     Accepts a complex, natural-language analysis task,
     Writes and execute code to answer it and return the final, summarized result
     Args:
+        log_list: List of string containing the structure of logs log file
         query : The natural language analysis task
         log_file_path : The full path to the log file on the host
     """
 
+    @tool
     async def execute_code_for_this_query(code : str):
-        return _run_sandboxed_code(code=code, log_file_path=log_file_path)
+        """
+        Executes the given Python code in a sandbox. The log file is at '/app/log.txt' inside the tool.
+        The code MUST print its final answer to stdout.
+        Args:
+            code : The Python code to execute
+        Returns:
+            The stdout of the executed Python code
+        """
+        return await _run_sandboxed_code(code=code, log_file_path=log_file_path)
 
-    internal_tool = Tool(
-        name="execute_python_code",
-        func=execute_code_for_this_query,
-        description=(
-            "Executes the given Python code in a sandbox. "
-            "The log file is at '/app/log.txt'. "
-            "The code MUST print its final answer to stdout."
-        )
-    )
+    tools = [execute_code_for_this_query]
+    tool_dict = {tool.name : tool for tool in tools}
 
-    internal_llm = ChatOpenAI(
+    chat_model = ChatOpenAI(
         model='gpt-4.1-mini',
         temperature=0
-    ).bind_tools([internal_tool])
-
-    system_prompt = (
-        "You are an expert Python developer. Your *only* job is to "
-        "write and execute code to answer a user's query about a log file. "
-        "You must use your 'execute_python_code' tool. "
-        "The log file is always at '/app/log.txt' inside the tool. "
-        "Do not answer from memory. Always write and run the code."
     )
-
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=query)
-    ]
-
-    try:
-        response_1 = await internal_llm.ainvoke(messages)
-        messages.append(response_1)
-
-        if not response_1.tool_calls:
-            return "ERROR : Agent failed to write the python code"
-        
-        tool_call = response_1.tool_calls[0]
-        code_to_run = tool_call.get('args').get('code')
-        exec_result = await execute_code_for_this_query(code_to_run)
-        messages.append(ToolMessage(content=exec_result, tool_call_id=tool_call['id']))
-
-        response_2 = await internal_llm.ainvoke(messages)
-        return response_2.content
-    except Exception as e:
-        print(f"Error in execution {e}")
-        return f"Error in MCP agent loop: {e}"
+    messages: list[AnyMessage] = [HumanMessage(content=query)]
+    agent = await build_workflow(chat_model, tools, tool_dict)
+    final_state = await agent.ainvoke(AgentState(messages=messages, max_executions=4, execution_count=0, log_list=log_list))
+    return final_state['messages'][-1].content
     
 async def test_sandbox():
     code = "print('Hello from inside Docker!')"

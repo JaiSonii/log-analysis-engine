@@ -1,4 +1,4 @@
-from python_mcp_server import mcp
+from core.server import mcp
 
 def main():
     print("Starting INTELLIGENT Python Analyzer MCP Server (FastMCP)...")

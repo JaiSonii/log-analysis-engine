@@ -8,8 +8,9 @@ class AgentState(MessagesState):
     repomix_context : str
     log_start : Optional[str]
     total_calls : int
+    execution_count : int
 
-class AgentInputSchema(TypedDict):
+class AgentInputSchema(MessagesState):
     log_list : List[str]
     log_file_path : str
     

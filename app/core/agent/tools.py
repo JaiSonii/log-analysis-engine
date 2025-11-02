@@ -13,27 +13,26 @@ class ToolMaker:
         self.mcp_client = MultiServerMCPClient({
                 "python_analyzer_service" : {
                     "transport" : "stdio",
-                    "command" : "mcp/.venv/Scripts/python.exe",
-                    "args" : ["mcp/main.py"]
+                    "command" : "C:\\Machine Learning\\log-analyzer\\mcp\\.venv\\Scripts\\python.exe",
+                    "args" : ["C:\\Machine Learning\\log-analyzer\\mcp\\main.py"]
                 }
             })
     
-    def __call__(self):
+    async def __call__(self):
         """
         Retrieves One query tool and one mcp tool
         Returns:
             A tuple containing list of tools and tool_dict
         """
         query_tool = self._get_vector_tool()
-        mcp_tools = self._get_mcp_tools()
+        mcp_tools = await self._get_mcp_tools()
 
         tools = [query_tool] + mcp_tools
         tool_dict = {tool.name : tool for tool in tools}
         return tools, tool_dict
         
-    def _get_mcp_tools(self):
-        import asyncio
-        return asyncio.run(self.mcp_client.get_tools())
+    async def _get_mcp_tools(self):
+        return await self.mcp_client.get_tools()
     
     def _get_vector_tool(self):
         @tool
@@ -58,12 +57,16 @@ class ToolMaker:
             pipe = VectorPipeline(InMemoryIndexer)
             pipe.create_db(log_file_path)
         else:
+            log_file_path = kwargs.get('log_file_path')
             faiss_path = kwargs.get('faiss_path')
             store_path = kwargs.get('store_path')
             if not faiss_path:
                 raise ValueError('Provide faiss_path for persistent indexer')
             if not store_path:
                 raise ValueError('Provide store_path for persistent indexer')
+
             pipe = VectorPipeline(PersistentFaissIndexer)
+            if log_file_path:
+                pipe.create_db(log_file_path)
             pipe.load(faiss_path, store_path)
         return pipe
